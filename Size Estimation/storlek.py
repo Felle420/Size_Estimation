@@ -5,4 +5,5 @@ import mediapipe as mp
 
 from size_translation import *
 
+# Kör size estimerings funktionen
 size_estimation()

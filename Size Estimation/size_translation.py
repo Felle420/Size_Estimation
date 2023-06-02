@@ -3,9 +3,12 @@ import cvzone
 import numpy as np
 import mediapipe as mp
 
+# Deklarerar ritningsfunktioner till mediapipe
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
+
+# Funktion som tar in storlekar och avrundar till det närmsta användbara värdet
 
 
 def closest_value(input_list, input_value):
@@ -15,6 +18,8 @@ def closest_value(input_list, input_value):
     i = (np.abs(arr - input_value)).argmin()
 
     return arr[i]
+
+# Funktion som översätter värden till klädstorlekar
 
 
 def hipstoEU(size_hips):
@@ -58,6 +63,8 @@ def hipstoEU(size_hips):
         size_hips_EU = 78
     return size_hips_EU
 
+# Funktion som gör om klädstorleken från en sifra till namnet på storleken
+
 
 def size_to_name(recommended_size):
     if recommended_size == 42:
@@ -100,12 +107,15 @@ def size_to_name(recommended_size):
         size_text = "8XL"
     return size_text
 
+# Funktion som listar ut din tröjstorlek.
+
 
 def size_estimation():
-    # For webcam input:
+    # Startar kameran:
     cap = cv2.VideoCapture(0)
     success, image = cap.read()
 
+    # Ritar ut outlinen på kameravyn
     imgFront = cv2.imread("outline.png", cv2.IMREAD_UNCHANGED)
     imgFront = cv2.resize(imgFront, (0, 0), None, 0.3, 0.3)
 
@@ -130,29 +140,24 @@ def size_estimation():
             imgResult = cvzone.overlayPNG(image, imgFront, [200, 6])
             if not success:
                 print("Ignoring empty camera frame.")
-                # If loading a video, use 'break' instead of 'continue'.
                 continue
 
-            # To improve performance, optionally mark the image as not writeable to
-            # pass by reference.
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = pose.process(image)
 
-            # Extract landmarks
+            # Tar ut landmärken
             try:
                 global landmarks
                 landmarks = results.pose_landmarks.landmark
             except:
                 pass
 
-            # To improve performance, optionally mark the image as not writeable to
-            # pass by reference.
             image.flags.writeable = False
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             results = pose.process(image)
 
-            # Draw the pose annotation on the image.
+            # Ritar ut poseringen på kameravyn
             image.flags.writeable = True
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             mp_drawing.draw_landmarks(
@@ -161,14 +166,19 @@ def size_estimation():
                 mp_pose.POSE_CONNECTIONS,
                 landmark_drawing_spec=mp_drawing_styles.get_default_pose_landmarks_style())
 
+            # Gör om de landmärkena som vi beöver till egna variabler
             shoulder_L = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x
             shoulder_R = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x
             hip_L = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x
             hip_R = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x
 
+            # Tar ut distanen från axel till axel
             distance_chest = shoulder_L - shoulder_R
+            # Tar ut distansen från höft till höft
             distance_hip = hip_L - hip_R
+            # Räknar ut omkretsen runt bröstet
             chest = (distance_chest * 167) * 2 + 34
+            # Räknar ut omkräten runt höfterna
             hip = (distance_hip * 167) * 2 + 43
 
             size_chest = closest_value(list_chest, chest)
@@ -176,27 +186,24 @@ def size_estimation():
 
             size_hips_EU = hipstoEU(size_hips)
 
+            # Tar medelvärdet mellan storlekarna på axlar och höfter och ger dig en generell idé på vad som borde passa
             average_size = (((size_chest/2) + 2) + size_hips_EU) / 2
 
             recommended_size = closest_value(list_sizes, average_size)
 
             size_text = size_to_name(recommended_size)
 
-            print((size_chest/2) + 2)
-            print(size_hips_EU)
-
-            # Setup status box
+            # Ritar ut en rektangel på skärmen
             color = (255, 255, 255)
             cv2.rectangle(imgResult, (0, 0), (250, 73),
                           (0, 0, 0), -1)
 
-            # Rep data
+            # Skriver ut din storlek på kameravyn
             cv2.putText(imgResult, "EU Size", (15, 12),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             cv2.putText(imgResult, str(recommended_size) + " " + size_text, (10, 60),
                         cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 2, cv2.LINE_AA)
 
-            # Flip the image horizontally for a selfie-view display.
             cv2.imshow('MediaPipe Pose', imgResult)
             if cv2.waitKey(5) & 0xFF == 27:
                 break
